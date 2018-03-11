@@ -6,8 +6,7 @@ trait Reducer[S, A] {
 
   def reduce(state: S): PartialFunction[A, S]
 
-  def dispatch(state: S, action: A): S =
-    reduce(state).applyOrElse(action, (_: A) => state)
+  def dispatch(state: S, action: A): S = reduce(state).applyOrElse(action, (_: A) => state)
 
 }
 object Reducer {
