@@ -42,12 +42,11 @@ class StoreSpec extends TestKit(ActorSystem("test"))
     it("applies middlewares") {
       val duplicate: Store.Middleware[Int, Action] =
         next => Flow[Action].mapConcat(action => List(action, action)).via(next)
-
       val flow = Store.withMiddlewares(duplicate)(1)(intReducer)
-      val result = Source(List(Increase, Increase, Increase))
+      val result = Source(List(Increase, Decrease, Increase))
         .via(flow)
         .runFold(0)((_, result) => result)
-      result map { r => r should be(7) }
+      result map { r => r should be(3) }
     }
 
   }

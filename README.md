@@ -4,6 +4,8 @@
 
 This repository is trying to implement some concepts of redux.
 
+## Reducer
+
 ```scala
 import Reducer.ops._
 import Reducer.generic._
@@ -52,4 +54,50 @@ actions.foldLeft(initialState)(_ dispatch _)
 //   header = Header("Hello, another world!!!!"),
 //   contents = Contents("new contents")
 // )
+```
+
+# Store and Middleware
+
+In [redux](https://github.com/reactjs/redux), `store` holds an object to represent current state. In order to implement store's functionality as immutable as possible, Akka Streams `Flow` is used to represent a stream of current states.
+```scala
+implicit val system: ActorSystem = ActorSystem("example")
+implicit val materializer: ActorMaterializer = ActorMaterializer()
+
+sealed trait Action
+case object Increase extends Action
+case object Decrease extends Action
+implicit val intReducer: Reducer[Int, Action] = (state: Int) => {
+  case Increase => state + 1
+  case Decrease => state - 1
+}
+
+// 1. You can write your own Middleware, that receives and returns Flow[Action, State, NotUsed].
+val duplicate: Store.Middleware[Int, Action] =
+  next => Flow[Action].mapConcat(action => List(action, action)).via(next)
+val logger: Store.Middleware[Int, Action] =
+  next => Flow[Action]
+    .map { action => println(s"action: ${action}"); action }
+    .via(next)
+    .map { state => println(s"state: ${state}"); state }
+  
+// 2. Create Flow.
+val reduxFlow = Store.withMiddlewares(duplicate, logger)(1)
+
+// 3. Emit Actions and receive States.
+val result = Source(List(Increase, Decrease, Increase))
+  .via(flow)
+  .runFold(0)((_, state) => state)
+// state: 1
+// action: Increase
+// state: 2
+// action: Increase
+// state: 3
+// action: Decrease
+// state: 2
+// action: Decrease
+// state: 1
+// action: Increase
+// state: 2
+// action: Increase
+// state: 3
 ```
